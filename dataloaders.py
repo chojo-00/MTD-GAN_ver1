@@ -1,7 +1,7 @@
 from create_datasets.Sinogram import *
 from create_datasets.Mayo import *
 from torch.utils.data import DataLoader
-
+from create_datasets import Custom
 def get_train_dataloader(name, args):
     if name == 'amc':            
         train_dataset, train_collate_fn = Sinogram_Dataset_DCM(mode='train', type=args.dataset_type_train)
@@ -16,8 +16,8 @@ def get_train_dataloader(name, args):
         valid_loader = DataLoader(valid_dataset, batch_size=1,               num_workers=args.valid_num_workers, shuffle=False, drop_last=False, collate_fn=valid_collate_fn)
 
     elif name == 'my_chest_data': 
-        train_dataset, train_collate_fn = CUSTOM_Dataset_DCM(mode='train', type=args.dataset_type_train)
-        valid_dataset, valid_collate_fn = CUSTOM_Dataset_DCM(mode='valid', type=args.dataset_type_valid)
+        train_dataset, train_collate_fn = Custom.CUSTOM_Dataset_DCM(mode='train', type=args.dataset_type_train)
+        valid_dataset, valid_collate_fn = Custom.CUSTOM_Dataset_DCM(mode='valid', type=args.dataset_type_valid)
         train_loader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.train_num_workers, shuffle=True,  drop_last=True,  collate_fn=train_collate_fn)
         valid_loader = DataLoader(valid_dataset, batch_size=1,               num_workers=args.valid_num_workers, shuffle=False, drop_last=False, collate_fn=valid_collate_fn)    
 
