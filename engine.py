@@ -35,11 +35,12 @@ def train_MTD_GAN_Ours(model, data_loader, optimizer_G, optimizer_D, device, epo
             optimizer_D.zero_grad()
             model.Discriminator.zero_grad()
             d_losses, d_loss_details = model.d_loss(input_n_20, input_n_100)
+            actual_discriminator = model.Discriminator.module if hasattr(model.Discriminator, 'module') else model.Discriminator
             loss_D, extra_outputs_D = method_D.backward(
                 losses=d_losses,
-                shared_parameters=list(model.Discriminator.shared_parameters()),
-                task_specific_parameters=list(model.Discriminator.task_specific_parameters()),
-                last_shared_parameters=list(model.Discriminator.last_shared_parameters()),
+                shared_parameters=list(actual_discriminator.shared_parameters()),
+                task_specific_parameters=list(actual_discriminator.task_specific_parameters()),
+                last_shared_parameters=list(actual_discriminator.last_shared_parameters()),
             )
             optimizer_D.step()
             metric_logger.update(d_loss=sum(d_losses))
