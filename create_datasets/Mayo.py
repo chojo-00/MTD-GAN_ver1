@@ -118,7 +118,7 @@ def get_transforms(mode="train", type="full_patch"):
             return Compose([
                     Lambdad(keys=["n_20", "n_100"], func=get_pixels_hu),
                     ScaleIntensityRanged(keys=["n_20", "n_100"], a_min=-160.0, a_max=240.0, b_min=0.0, b_max=1.0, clip=True),     # Windowing HU [min:-160, max:240]
-                    AddChanneld(keys=["n_20", "n_100"]),    
+                    EnsureChannelFirstd(keys=["n_20", "n_100"], channel_dim="no_channel"),    
                     
                     # Crop, patch training, next(iter(loader)) output : list로 sample 만큼,,, 그 List 안에 (B, C, H, W)
                     CropForegroundd(keys=["n_20", "n_100"], source_key="n_100", select_fn=lambda x: x > 0),
