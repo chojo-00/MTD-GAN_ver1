@@ -5,7 +5,7 @@
 #SBATCH --mail-type END,TIME_LIMIT_90,REQUEUE,INVALID_DEPEND,BEGIN
 #SBATCH --mail-user chobyeongcheon00@gmail.com
 #SBATCH -p A6000
-#SBATCH -w gpu122
+#SBATCH -w gpu120
 #SBATCH --gres=gpu:1
 
 
@@ -41,7 +41,7 @@ if docker ps -a -q --filter "name=${DOCKER_CONTAINER_NAME}" | grep -q .; then
     docker rm ${DOCKER_CONTAINER_NAME}
 fi
 
-# gpu 인식하냐
+# gpu 
 echo "=== Check GPU on Host Node ==="
 nvidia-smi
 echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
@@ -60,10 +60,22 @@ docker run --rm \
             cd ${CODE_DIR} && \
             python3 train.py \
                 --dataset my_chest_data \
-                --batch-size 8 \
+                --dataset-type-train 'window_patch' \
+                --dataset-type-valid 'window' \
+                --batch-size 20 \
+                --train-num-workers 16 \
+                --valid-num-workers 16 \
+                --model 'MTD_GAN_Method' \
+                --loss 'L1 Loss' \
+                --method 'pcgrad' \
+                --optimizer 'adamw' \
+                --scheduler 'poly_lr' \
                 --epochs 500 \
+                --warmup-epochs 10 \
+                --lr 1e-4 \
+                --min-lr 1e-6 \
+                --print-freq 10 \
+                --save-checkpoint-every 1 \
                 --checkpoint-dir ${CHECKPOINT_DIR} \
-                --save-dir ${SAVE_DIR} \
-                --train-num-workers 8 \
-                --valid-num-workers 8
+                --save-dir ${SAVE_DIR} 
         "
