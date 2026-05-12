@@ -127,12 +127,19 @@ def main(args):
 
     # Resume
     if args.resume:
-        print("Loading... Resume")
+        print(f"Loading... Resume from {args.resume}")
         checkpoint = torch.load(args.resume, map_location='cpu')
+        
+        # 1. Model
         checkpoint['model_state_dict'] = {k.replace('.module', ''): v for k, v in checkpoint['model_state_dict'].items()}
         model.load_state_dict(checkpoint['model_state_dict'])
-        start_epoch = checkpoint['epoch'] + 1
+        
+        # 2. Weight Method (MTD-GAN Multi-task weights)
+        if weight_method_D is not None and 'weight_method_D_params' in checkpoint:
+            for current_p, saved_p in zip(weight_method_D.parameters(), checkpoint['weight_method_D_params']):
+                current_p.data.copy_(saved_p.to(current_p.device))
 
+        # 3. Optimizers & Schedulers
         optimizer_D.load_state_dict(checkpoint['optimizer_D'])
         scheduler_D.load_state_dict(checkpoint['scheduler_D'])
         optimizer_G.load_state_dict(checkpoint['optimizer_G'])
@@ -140,6 +147,14 @@ def main(args):
         utils.fix_optimizer(optimizer_D)
         utils.fix_optimizer(optimizer_G)
 
+        # 4. Random States (중단된 시점의 배치 순서 및 노이즈 상태 정확히 복원)
+        if 'random_state' in checkpoint:
+            random.setstate(checkpoint['random_state'])
+            np.random.set_state(checkpoint['np_random_state'])
+            torch.set_rng_state(checkpoint['torch_rng_state'])
+            torch.cuda.set_rng_state_all(checkpoint['torch_cuda_rng_state'])
+
+        start_epoch = checkpoint['epoch'] + 1
     # Tensorboard
     tensorboard = SummaryWriter(args.checkpoint_dir + '/runs')
     print('Writing Tensorboard logs to ', args.checkpoint_dir + '/runs')
@@ -166,13 +181,16 @@ def main(args):
             tensorboard.add_scalar(f'Valid Stats/{key}', value, epoch)
 
         # LR scheduler update
-        scheduler_G.step(epoch)
-        scheduler_D.step(epoch)
+        scheduler_G.step()
+        scheduler_D.step()
 
-        # Save checkpoint
+
+
+# Save checkpoint
         if epoch % args.save_checkpoint_every == 0:
             checkpoint_path = args.checkpoint_dir + '/epoch_' + str(epoch) + '_checkpoint.pth'
-            torch.save({
+            
+            save_dict = {
                 'model_state_dict': model.module.state_dict() if hasattr(model, 'module') else model.state_dict(),
                 'optimizer_D': optimizer_D.state_dict(),
                 'scheduler_D': scheduler_D.state_dict(),
@@ -180,7 +198,20 @@ def main(args):
                 'scheduler_G': scheduler_G.state_dict(),
                 'epoch': epoch,
                 'args': args,
-            }, checkpoint_path)
+                # 랜덤 상태 저장
+                'random_state': random.getstate(),
+                'np_random_state': np.random.get_state(),
+                'torch_rng_state': torch.get_rng_state(),
+                'torch_cuda_rng_state': torch.cuda.get_rng_state_all(),
+            }
+            
+            # Weight Method 파라미터가 있다면 함께 저장
+            if weight_method_D is not None:
+                save_dict['weight_method_D_params'] = [p.data.cpu().clone() for p in weight_method_D.parameters()]
+
+            torch.save(save_dict, checkpoint_path)
+
+
 
         # Log
         log_stats = {
